@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: #f8fbff;
+            font-family: Segoe UI, sans-serif
+        }
+
+        .att-title {
+            font-size: 22px;
+            font-weight: 600;
+            border-left: 4px solid #0d6efd;
+            padding-left: 10px
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center
+        }
+
+        .header-right {
+            display: flex;
+            gap: 8px
+        }
+
+        .header-right button {
+            height: 36px;
+            min-width: 140px;
+            background: #315f86;
+            color: #fff;
+            border: none
+        }
+
+        .month-text {
+            font-weight: 600;
+            margin: 6px 0 15px
+        }
+
+        .summary-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px
+        }
+
+        .summary {
+            flex: 1;
+            background: #eef6ff;
+            border: 1px solid #cfe2ff;
+            padding: 14px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            cursor: pointer
+        }
+
+        .summary span {
+            font-size: 22px;
+            display: block
+        }
+
+        /* STATUS COLORS */
+        .text-present {
+            color: #11AA6D !important;
+            font-weight: 600
+        }
+
+        .text-absent {
+            color: #F0493A !important;
+            font-weight: 700
+        }
+
+        .text-leave {
+            color: #EEB806 !important;
+            font-weight: 700
+        }
+
+        .text-late {
+            color: #744103 !important;
+            font-weight: 700
+        }
+
+        /* CALENDAR */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr)
+        }
+
+        .table>:not(caption)>*>* {
+            color: none !important;
+        }
+
+        .day-name {
+            text-align: center;
+            font-weight: 600;
+            padding: 6px;
+            border-bottom: 1px solid #eee
+        }
+
+        .day {
+            height: 55px;
+            border: 1px solid #eee;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #DFFFDC;
+            /* default present */
+        }
+
+        /* EMPTY CELLS */
+        .empty-day {
+            background: #fff !important;
+        }
+
+        /* STATUS BACKGROUNDS */
+        .absent {
+            background: #FF6F6F;
+            font-weight: 600
+        }
+
+        .leave {
+            background: #fff6b3;
+            font-weight: 600
+        }
+
+        .holiday {
+            background: #C5D7FE;
+            font-weight: 600
+        }
+
+        .holidays-container {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #dee2e6
+        }
+
+        .holidays-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #0d6efd;
+            font-size: 18px;
+            border-left: 4px solid #0d6efd;
+            padding-left: 10px
+        }
+
+        .holiday-item {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef
+        }
+
+        .holiday-date {
+            min-width: 130px;
+            font-weight: 600
+        }
+
+        .holiday-name-list {
+            margin-left: 15px
+        }
+
+        .no-holidays {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container-fluid px-4 mt-4">
+
+        <div class="header">
+            <div>
+                <div class="att-title">Attendance</div>
+                <div class="month-text" id="monthLabel"></div>
+            </div>
+            <div class="header-right">
+                <input type="month" id="monthPicker" class="form-control">
+                <button class="btn" id="monthViewBtn">Month of View</button>
+            </div>
+        </div>
+
+        <div class="summary-row">
+            <div class="summary" id="presentCard">Present<span id="pCount"></span></div>
+            <div class="summary" id="absentCard">Absent<span id="aCount"></span></div>
+            <div class="summary" id="leaveCard">Leaves<span id="lCount"></span></div>
+            <div class="summary" id="lateCard">Late<span id="lateCount"></span></div>
+        </div>
+
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Login</th>
+                    <th>Logout</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+
+    </div>
+
+    <div class="modal fade" id="monthModal" tabindex="-1">
+        <div class="modal-dialog modal-xxl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"></h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div id="calendarWrapper">
+                        <div class="calendar-grid" id="calendarGrid"></div>
+                    </div>
+
+                    <div class="holidays-container">
+                        <div class="holidays-title" id="listTitle"></div>
+                        <div id="holidayList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const picker = document.getElementById("monthPicker");
+        const tableBody = document.getElementById("tableBody");
+        const calendarGrid = document.getElementById("calendarGrid");
+        const calendarWrapper = document.getElementById("calendarWrapper");
+        const holidayList = document.getElementById("holidayList");
+        const listTitle = document.getElementById("listTitle");
+        const modalTitle = document.getElementById("modalTitle");
+        const monthLabel = document.getElementById("monthLabel");
+
+        const pCount = document.getElementById("pCount");
+        const aCount = document.getElementById("aCount");
+        const lCount = document.getElementById("lCount");
+        const lateCount = document.getElementById("lateCount");
+
+        /* HOLIDAYS */
+        const holidays = {
+            "01": [{ d: 1, n: "New Year" }, { d: 14, n: "Sankranthi" }, { d: 26, n: "Republic Day" }],
+            "03": [{ d: 4, n: "Holi" }, { d: 19, n: "Ugadi" }],
+            "08": [{ d: 15, n: "Independence Day" }],
+            "09": [{ d: 14, n: "Vinayaka Chavithi" }],
+            "10": [{ d: 20, n: "Dussehra" }],
+            "11": [{ d: 8, n: "Diwali" }],
+            "12": [{ d: 25, n: "Christmas" }]
+        };
+
+        let attendance = {};
+
+        picker.value = new Date().toISOString().slice(0, 7);
+        loadMonth();
+        picker.addEventListener("change", loadMonth);
+
+        function loadMonth() {
+            attendance = {};
+            tableBody.innerHTML = "";
+
+            const [y, m] = picker.value.split("-");
+            const days = new Date(y, m, 0).getDate();
+
+            monthLabel.innerText = modalTitle.innerText =
+                new Date(y, m - 1).toLocaleString("default", { month: "long", year: "numeric" });
+
+            let p = 0, a = 0, l = 0, late = 0;
+
+            for (let d = 1; d <= days; d++) {
+                const date = new Date(y, m - 1, d);
+                if (date.getDay() === 0 || date.getDay() === 6) continue;
+
+                let status = "Present", login = "9:30 AM";
+
+                if (d % 10 === 0) { status = "Late"; login = "10:15 AM"; late++; }
+                else if (d % 9 === 0) { status = "Absent"; a++; }
+                else if (d % 8 === 0) { status = "Leave"; l++; }
+                else p++;
+
+                attendance[d] = { status, login };
+
+                tableBody.innerHTML += `
+        <tr>
+            <td>${String(d).padStart(2, "0")}-${m}-${y}</td>
+            <td>${status === "Absent" || status === "Leave" ? "-" : login}</td>
+            <td>${status === "Present" || status === "Late" ? "6:30 PM" : "-"}</td>
+            <td class="text-${status.toLowerCase()}">${status}</td>
+        </tr>`;
+            }
+
+            pCount.innerText = p;
+            aCount.innerText = a;
+            lCount.innerText = l;
+            lateCount.innerText = late;
+
+            renderCalendar(y, m);
+        }
+
+        function renderCalendar(y, m) {
+            calendarGrid.innerHTML = `
+    <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div>
+    <div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>`;
+
+            const first = new Date(y, m - 1, 1).getDay();
+            const total = new Date(y, m, 0).getDate();
+
+            /* EMPTY CELLS (WHITE) */
+            for (let i = 0; i < first; i++) {
+                calendarGrid.innerHTML += `<div class="day empty-day"></div>`;
+            }
+
+            /* ACTUAL DAYS */
+            for (let d = 1; d <= total; d++) {
+                let cls = "", text = "";
+
+                if (holidays[m]?.some(h => h.d === d)) {
+                    cls = "holiday";
+                    text = holidays[m].find(h => h.d === d).n;
+                } else if (attendance[d]?.status === "Absent") {
+                    cls = "absent"; text = "Absent";
+                } else if (attendance[d]?.status === "Leave") {
+                    cls = "leave"; text = "Leave";
+                }
+
+                calendarGrid.innerHTML += `
+        <div class="day ${cls}">
+            <div>${d}</div>
+            ${text ? `<div>${text}</div>` : ""}
+        </div>`;
+            }
+        }
+
+        function openList(type) {
+            calendarWrapper.style.display = "none";
+            listTitle.innerText = `${type} Days`;
+            holidayList.innerHTML = "";
+
+            const data = Object.entries(attendance).filter(([_, v]) => v.status === type);
+
+            if (!data.length) {
+                holidayList.innerHTML = `<div class="no-holidays">No ${type.toLowerCase()} days</div>`;
+            } else {
+                data.forEach(([d, v]) => {
+                    holidayList.innerHTML += `
+            <div class="holiday-item">
+                <div class="holiday-date">${String(d).padStart(2, "0")}-${picker.value.split("-")[1]}-${picker.value.split("-")[0]}</div>
+                <div class="holiday-name-list text-${type.toLowerCase()}">
+                    ${type === "Late" ? `Late Login at ${v.login}` : type}
+                </div>
+            </div>`;
+                });
+            }
+
+            new bootstrap.Modal(document.getElementById("monthModal")).show();
+        }
+
+        monthViewBtn.onclick = () => {
+            calendarWrapper.style.display = "block";
+            listTitle.innerText = "List of Holidays";
+            holidayList.innerHTML = "";
+
+            const [y, m] = picker.value.split("-");
+            const list = holidays[m] || [];
+
+            if (!list.length) {
+                holidayList.innerHTML = `<div class="no-holidays">No holidays this month</div>`;
+            } else {
+                list.forEach(h => {
+                    holidayList.innerHTML += `
+            <div class="holiday-item">
+                <div class="holiday-date">${String(h.d).padStart(2, "0")}-${m}-${y}</div>
+                <div class="holiday-name-list text-primary">${h.n}</div>
+            </div>`;
+                });
+            }
+
+            new bootstrap.Modal(document.getElementById("monthModal")).show();
+        };
+
+        presentCard.onclick = () => openList("Present");
+        absentCard.onclick = () => openList("Absent");
+        leaveCard.onclick = () => openList("Leave");
+        lateCard.onclick = () => openList("Late");
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
